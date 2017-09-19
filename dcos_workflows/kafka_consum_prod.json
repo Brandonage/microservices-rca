@@ -1,0 +1,119 @@
+{
+	"id": "/kafkaprodandcons",
+	"groups": [
+		{
+			"id": "/kafkaprodandcons/zookeeper",
+			"apps":[
+				{
+					"id": "/kafkaprodandcons/zookeeper/zookeeper",
+			  		"cpus": 0.4,
+			  		"mem": 2024,
+			  		"container": {
+			    		"type": "DOCKER",
+			    		"docker": {
+			      			"network": "USER",
+			      			"image": "zookeeper",
+			      			"forcePullImage": true
+			    		}
+			  		},
+			  		"instances": 1,
+                    "ipAddress": {"networkName": "dcos"}
+				}
+			]
+		},
+		{
+			"id": "/kafkaprodandcons/kafkabrokers",
+            "dependencies": ["/kafkaprodandcons/zookeeper"],
+			"apps":[
+				{
+					"id": "/kafkaprodandcons/kafkabrokers/kafka",
+			  		"cpus": 0.4,
+			  		"mem": 1024,
+			  		"container": {
+			    		"type": "DOCKER",
+			    		"docker": {
+			      			"network": "USER",
+			      			"image": "ches/kafka",
+			      			"forcePullImage": true
+			    		}
+			  		},
+			  		"instances": @nbrokers@,
+                    "ipAddress": {"networkName": "dcos"},
+			  		"constraints": [["hostname", "GROUP_BY"]]
+				}
+			]
+		},
+		{
+			"id": "/kafkaprodandcons/producers",
+			"dependencies": ["/kafkaprodandcons/kafkabrokers"],
+			"apps":[
+				{
+					"id": "/kafkaprodandcons/producers/fmone-producers",
+			  		"cpus": 0.5,
+					"mem": 200,
+					"container": {
+					  "type": "DOCKER",
+					  "docker": {
+					    "network": "USER",
+					    "image": "alvarobrandon/fmone-agent",
+					    "forcePullImage": true
+					  },
+					"volumes": [
+					    {
+					      "containerPath": "/proc_host",
+					      "hostPath": "/proc",
+					      "mode": "RO"
+					    },
+						{
+						  "containerPath" : "/var/run/docker.sock",
+						  "hostPath": "/var/run/docker.sock",
+						  "mode": "RO"
+						}
+					  ]
+					},
+					"args": ["1","1","docker","inout","kafka","--kafka_bootstrap_out","kafka.kafkaprodandcons.kafkabrokers.marathon-user.containerip.dcos.thisdcos.directory:9092",
+                            "--kafka_topic_out","kafkascenario"],
+					"instances": @nproducers@,
+					"ipAddress": {"networkName": "dcos"},
+                    "constraints": [["hostname", "GROUP_BY"]]
+				}
+			]
+		},
+		{
+			"id": "/kafkaprodandcons/consumers",
+			"dependencies": ["/kafkaprodandcons/kafkabrokers"],
+			"apps":[
+				{
+					"id": "/kafkaprodandcons/consumers/fmone-consumers",
+			  		"cpus": 0.5,
+					"mem": 200,
+					"container": {
+					  "type": "DOCKER",
+					  "docker": {
+					    "network": "USER",
+					    "image": "alvarobrandon/fmone-agent",
+					    "forcePullImage": true
+					  },
+					"volumes": [
+					    {
+					      "containerPath": "/proc_host",
+					      "hostPath": "/proc",
+					      "mode": "RO"
+					    },
+						{
+						  "containerPath" : "/var/run/docker.sock",
+						  "hostPath": "/var/run/docker.sock",
+						  "mode": "RO"
+						}
+					  ]
+					},
+					"args": ["1","1","kafka","inout","console","--kafka_bootstrap_in","kafka.kafkaprodandcons.kafkabrokers.marathon-user.containerip.dcos.thisdcos.directory:9092",
+                            "--kafka_topic_in","kafkascenario"],
+					"instances": @nconsumers@,
+					"ipAddress": {"networkName": "dcos"},
+                    "constraints": [["hostname", "GROUP_BY"]]
+				}
+			]
+		}
+	]
+}
