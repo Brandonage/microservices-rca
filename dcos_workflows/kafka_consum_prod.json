@@ -39,7 +39,13 @@
 			  		},
 			  		"instances": @nbrokers@,
                     "ipAddress": {"networkName": "dcos"},
-			  		"constraints": [["hostname", "GROUP_BY"]]
+			  		"constraints": [["hostname", "GROUP_BY"]],
+					"env" : {
+    					"ZOOKEEPER_IP" : "zookeeper-zookeeper-kafkaprodandcons.marathon-user.containerip.dcos.thisdcos.directory",
+    					"KAFKA_BROKER_ID" : "-1",
+    					"KAFKA_AUTO_CREATE_TOPICS_ENABLE" : "true",
+						"KAFKA_NUM_PARTITIONS" : "10"
+  					}
 				}
 			]
 		},
@@ -71,7 +77,7 @@
 						}
 					  ]
 					},
-					"args": ["1","1","docker","inout","kafka","--kafka_bootstrap_out","kafka.kafkaprodandcons.kafkabrokers.marathon-user.containerip.dcos.thisdcos.directory:9092",
+					"args": ["1","1","docker","inout","kafka","--kafka_bootstrap_out","kafka-kafkabrokers-kafkaprodandcons.marathon-user.containerip.dcos.thisdcos.directory:9092",
                             "--kafka_topic_out","kafkascenario"],
 					"instances": @nproducers@,
 					"ipAddress": {"networkName": "dcos"},
@@ -107,7 +113,7 @@
 						}
 					  ]
 					},
-					"args": ["1","1","kafka","inout","console","--kafka_bootstrap_in","kafka.kafkaprodandcons.kafkabrokers.marathon-user.containerip.dcos.thisdcos.directory:9092",
+					"args": ["1","1","kafka","inout","console","--kafka_bootstrap_in","kafka-kafkabrokers-kafkaprodandcons.marathon-user.containerip.dcos.thisdcos.directory:9092",
                             "--kafka_topic_in","kafkascenario"],
 					"instances": @nconsumers@,
 					"ipAddress": {"networkName": "dcos"},
