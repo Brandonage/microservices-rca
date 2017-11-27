@@ -1,5 +1,8 @@
-from execo import Remote
-
+from execo import Remote, Put, SshProcess
+from time import sleep
+from common_functions import replace_infile
+import os
+import json
 
 """
 This class is going to inject anomalies on the different nodes and Docker containers. Is not going to have an internal
@@ -21,6 +24,20 @@ class AnomalyInjectorDCOS():
         Remote(cmd='sudo yum -y install stress-ng',
                hosts=nodes,
                connection_params=connection_params).run()
+        # and it will also use the workflows available for dcos, specially the siege workflow to generate a big ammount
+        # of calls to an endpoint
+        self.resources_path = os.path.join(os.path.dirname(__file__), 'dcos_workflows')
+
+
+    def send_exec_to_marathon(self,curl_node):
+        Put(hosts=curl_node,
+            local_files=[self.resources_path + "/exec.json"],
+            remote_location="/home/vagrant/exec.json",
+            connection_params=self.connection_params).run()
+        p = SshProcess(
+            'curl -X POST "http://leader.mesos/service/marathon-user/v2/groups" -H "content-type: application/json" -d@/home/vagrant/exec.json',
+            host=curl_node,
+            connection_params=self.connection_params).run()
 
     def stress_ng(self,type,nstressors,timeout,nodes):
         Remote(cmd="stress-ng --{0} {1} --timeout {2}s".format(type,nstressors,timeout),
@@ -114,15 +131,19 @@ class AnomalyInjectorDCOS():
         Remote(cmd='sudo tc qdisc add dev eth0 parent 1:10 handle 10: netem delay {0} {1} 25% loss {2}'.format(delay,delay_jitter,loss_percent),
                hosts=nodes,
                connection_params=self.connection_params).run()
-        #sudo tc qdisc add dev eth0 root handle 1: htb default 10
-        #sudo tc class add dev eth0 parent 1: classid 1:10 htb rate 10kbps ceil 10kbps
-        #sudo tc qdisc add dev eth0 parent 1:10 handle 10: netem delay 100ms 0.1ms 25% loss 1%
+        # sudo tc qdisc add dev eth0 root handle 1: htb default 10
+        # sudo tc class add dev eth0 parent 1: classid 1:10 htb rate 10kbps ceil 10kbps
+        # sudo tc qdisc add dev eth0 parent 1:10 handle 10: netem delay 100ms 0.1ms 25% loss 1%
 
     def restore_upload_bandwidth(self,nodes):
         Remote(cmd='sudo tc qdisc del dev eth0 root',
                hosts=nodes,
                connection_params=self.connection_params).run()
 
+    def limit_bandwith(self,nodes,delay='100ms',delay_jitter='1ms',bandwidth='100kpbs',loss_percent='1%',timeout=10):
+        self.limit_upload_bandwidth(nodes,delay,delay_jitter,bandwidth,loss_percent)
+        sleep(timeout)
+        self.restore_upload_bandwidth(nodes)
 
     def reboot_machine(self,nodes):
         Remote(cmd='sudo reboot',
@@ -143,3 +164,20 @@ class AnomalyInjectorDCOS():
         Remote(cmd="rm /tmp/tempFiller.deleteMe",
                host=nodes,
                connection_params=self.connection_params).run()
+
+    def stress_endpoint_siege(self, curl_node, endpoint,ninstances,nclients,time):
+        replacements = {"@delay@" : str(1),
+                        "@time@": str(time),
+                        "@nclients@": str(nclients),
+                        "@endpoint@": endpoint,
+                        "@ninstances@": str(ninstances)
+                        }
+        replace_infile(self.resources_path + "/siege.json",self.resources_path + "/exec.json",replacements)
+        # we add some extra logic to add the benchmark tag to the siege arguments. This eliminates delays between
+        # requests
+        with open(self.resources_path + "/exec.json") as f:
+            siegejson = json.load(f)
+        siegejson['groups'][0]['apps'][0]['args'].append('--benchmark')
+        with open(self.resources_path + "/exec.json","w") as fnew:
+            json.dump(siegejson,fnew)
+        self.send_exec_to_marathon(curl_node)

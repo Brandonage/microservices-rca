@@ -1,0 +1,158 @@
+{
+	"id": "/hdfsspark",
+	"groups": [
+		{
+			"id": "/hdfsspark/namenode",
+			"apps":[
+				{
+					"id": "/hdfsspark/namenode/namenode",
+			  		"cpus": 1,
+			  		"mem": 2048,
+			  		"container": {
+			    		"type": "DOCKER",
+			    		"docker": {
+			      			"image": "uhopper/hadoop-namenode",
+			      			"forcePullImage": true
+			    		},
+                        "volumes": [
+                            {
+                              "containerPath": "/hadoop/dfs/name",
+                              "hostPath": "/home/vagrant/name",
+                              "mode": "RW"
+                            }
+                        ],
+                        "portMappings": [
+      						{ "hostPort": 0, "containerPort": 8020, "servicePort": 10010 },
+      						{ "hostPort": 0, "containerPort": 50070, "servicePort": 10011 }
+    					]
+			  		},
+                    "networks": [
+                        {
+                            "mode": "container",
+                            "name": "dcos"
+                        }
+                    ],
+                    "env" : {
+    					"CLUSTER_NAME" : "hdfs-cluster",
+    					"HDFS_CONF_dfs_namenode_datanode_registration_ip___hostname___check" : "false",
+    					"HDFS_CONF_dfs_client_use_datanode_hostname" : "false",
+    					"HDFS_CONF_dfs_datanode_use_datanode_ip_hostname" : "false"
+  					},
+			  		"instances": 1
+				}
+			]
+		},
+		{
+			"id": "/hdfsspark/datanode",
+            "dependencies": ["/hdfsspark/namenode"],
+			"apps":[
+				{
+					"id": "/hdfsspark/datanode/datanode",
+			  		"cpus": 1,
+			  		"mem": 2024,
+			  		"container": {
+			    		"type": "DOCKER",
+			    		"docker": {
+			      			"image": "uhopper/hadoop-datanode",
+			      			"forcePullImage": true
+			    		},
+                        "volumes": [
+                            {
+                              "containerPath": "/hadoop/dfs/data",
+                              "hostPath": "/home/vagrant/data",
+                              "mode": "RW"
+                            }
+                        ]
+			  		},
+			  		"networks": [
+                        {
+                            "mode": "container",
+                            "name": "dcos"
+                        }
+                    ],
+			  		"instances": @ndatanodes@,
+			  		"constraints": [["hostname", "GROUP_BY"]],
+					"env" : {
+    					"CORE_CONF_fs_defaultFS" : "hdfs://namenode-namenode-hdfsspark.marathon-user.containerip.dcos.thisdcos.directory:8020",
+    					"HDFS_CONF_dfs_namenode_datanode_registration_ip___hostname___check" : "false",
+    					"HDFS_CONF_dfs_client_use_datanode_hostname" : "false",
+    					"HDFS_CONF_dfs_datanode_use_datanode_ip_hostname" : "false"
+  					}
+				}
+			]
+		},
+        {
+			"id": "/hdfsspark/resourcemanager",
+            "dependencies": ["/hdfsspark/namenode"],
+			"apps":[
+				{
+					"id": "/hdfsspark/resourcemanager/resourcemanager",
+			  		"cpus": 1,
+			  		"mem": 1024,
+			  		"container": {
+			    		"type": "DOCKER",
+			    		"docker": {
+			      			"image": "uhopper/hadoop-resourcemanager",
+			      			"forcePullImage": true
+			    		},
+			    		"portMappings": [
+      						{ "hostPort": 0, "containerPort": 8032, "servicePort": 10012 },
+      						{ "hostPort": 0, "containerPort": 8030, "servicePort": 10013 },
+      						{ "hostPort": 0, "containerPort": 8088, "servicePort": 10014 },
+      						{ "hostPort": 0, "containerPort": 8090, "servicePort": 10015 },
+      						{ "hostPort": 0, "containerPort": 8031, "servicePort": 10016 },
+      						{ "hostPort": 0, "containerPort": 8033, "servicePort": 10017 }
+    					]
+			  		},
+			  		"networks": [
+                        {
+                            "mode": "container",
+                            "name": "dcos"
+                        }
+                    ],
+			  		"instances": 1,
+					"env" : {
+    					"CORE_CONF_fs_defaultFS" : "hdfs://namenode-namenode-hdfsspark.marathon-user.containerip.dcos.thisdcos.directory:8020",
+    					"HDFS_CONF_dfs_namenode_datanode_registration_ip___hostname___check" : "false",
+    					"HDFS_CONF_dfs_client_use_datanode_hostname" : "false",
+    					"HDFS_CONF_dfs_datanode_use_datanode_ip_hostname" : "false",
+    					"YARN_CONF_yarn_log___aggregation___enable" : "true"
+  					}
+				}
+			]
+		},
+		{
+			"id": "/hdfsspark/nodemanager",
+            "dependencies": ["/hdfsspark/resourcemanager"],
+			"apps":[
+				{
+					"id": "/hdfsspark/nodemanager/nodemanager",
+			  		"cpus": 1,
+			  		"mem": 1024,
+			  		"container": {
+			    		"type": "DOCKER",
+			    		"docker": {
+			      			"image": "uhopper/hadoop-nodemanager",
+			      			"forcePullImage": true
+			    		}
+			  		},
+			  		"networks": [
+                        {
+                            "mode": "container",
+                            "name": "dcos"
+                        }
+                    ],
+			  		"instances": @nnodemanagers@,
+			  		"constraints": [["hostname", "GROUP_BY"]],
+					"env" : {
+    					"CORE_CONF_fs_defaultFS" : "hdfs://namenode-namenode-hdfsspark.marathon-user.containerip.dcos.thisdcos.directory:8020",
+    					"HDFS_CONF_dfs_namenode_datanode_registration_ip___hostname___check" : "false",
+    					"HDFS_CONF_dfs_client_use_datanode_hostname" : "false",
+    					"HDFS_CONF_dfs_datanode_use_datanode_ip_hostname" : "false",
+    					"YARN_CONF_yarn_resourcemanager_hostname" : "resourcemanager-resourcemanager-hdfsspark.marathon-user.containerip.dcos.thisdcos.directory"
+  					}
+				}
+			]
+		}
+	]
+}

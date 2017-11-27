@@ -27,8 +27,34 @@ class WorkflowInjectorDCOS():
             host=curl_node,
             connection_params=self.connection_params).run()
 
-    def kafka_producers_and_consumers(self,masters,nbrokers,nconsumers,nproducers):
-        curl_node = list(masters)[0]
+    def kafka_producers_and_consumers(self,curl_node,nbrokers,nconsumers,nproducers):
         replacements = {"@nbrokers@" : str(nbrokers),"@nconsumers@" : str(nconsumers), "@nproducers@" : str(nproducers)}
         replace_infile(self.resources_path + "/kafka_consum_prod.json",self.resources_path + "/exec.json",replacements)
         self.send_exec_to_marathon(curl_node)
+
+    def siege_http_clients(self, curl_node, endpoint, ninstances, nclients, time, delay):
+        replacements = {"@delay@" : str(delay),
+                        "@time@": str(time),
+                        "@nclients@": str(nclients),
+                        "@endpoint@": endpoint,
+                        "@ninstances@": str(ninstances)
+                        }
+        replace_infile(self.resources_path + "/siege.json",self.resources_path + "/exec.json",replacements)
+        self.send_exec_to_marathon(curl_node)
+
+    def lb_wordpress(self,curl_node,nwordpress):
+        replacements = {
+            "@nwordpress@" : str(nwordpress)
+        }
+        replace_infile(self.resources_path + "/wordpress_lb.json",self.resources_path + "/exec.json",replacements)
+        self.send_exec_to_marathon(curl_node)
+
+    def hadoop_cluster(self,curl_node,ndatanodes,nnodemanagers):
+        replacements = {
+            "@ndatanodes@": str(ndatanodes),
+            "@nnodemanagers@": str(nnodemanagers)
+        }
+        replace_infile(self.resources_path + "/hdfs_spark.json",self.resources_path + "/exec.json",replacements)
+        self.send_exec_to_marathon(curl_node)
+
+

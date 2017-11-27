@@ -1,0 +1,82 @@
+{
+  "id" : "/wordpresslb",
+  "groups" : [
+    {
+      "id": "/wordpresslb/mysqlbackend",
+      "apps": [
+        {
+          "id" : "/wordpresslb/mysqlbackend/mysql",
+          "cpus" : 0.4,
+          "mem" : 1024,
+          "networks": [
+            {
+              "mode": "container",
+              "name": "dcos"
+            }
+          ],
+          "container": {
+            "type": "DOCKER",
+            "docker": {
+              "image": "mysql",
+              "forcePullImage": true
+            },
+            "portMappings": [
+              {
+              "hostPort": 0,
+              "containerPort": 3306,
+              "servicePort": 10002
+              }
+            ]
+          },
+          "instances": 1,
+          "labels" : {
+            "HAPROXY_GROUP" : "internal",
+            "HAPROXY_0_MODE":"tcp"
+          },
+          "env" : {
+            "MYSQL_ROOT_PASSWORD" : "password"
+          }
+        }
+      ]
+    },
+    {
+      "id": "/wordpresslb/wordpressinstances",
+      "dependencies": ["/wordpress_lb/mysqlbackend"],
+      "apps": [
+        {
+          "id" : "/wordpresslb/wordpressinstances/wordpress",
+          "cpus" : 0.2,
+          "mem" : 512,
+          "networks": [
+            {
+              "mode": "container",
+              "name": "dcos"
+            }
+          ],
+          "container": {
+            "type": "DOCKER",
+            "docker": {
+              "image": "wordpress",
+              "forcePullImage": true
+            },
+            "portMappings": [
+             {
+              "hostPort": 0,
+              "containerPort": 80,
+              "servicePort": 10001
+             }
+            ]
+          },
+          "instances": @nwordpress@,
+          "labels" : {
+            "HAPROXY_GROUP" : "internal"
+          },
+          "env" : {
+            "WORDPRESS_DB_HOST" : "marathon-lb.marathon.mesos:10002",
+            "WORDPRESS_DB_PASSWORD": "password"
+          }
+        }
+      ]
+    }
+  ]
+}
