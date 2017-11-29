@@ -88,7 +88,7 @@
 				{
 					"id": "/hdfsspark/resourcemanager/resourcemanager",
 			  		"cpus": 1,
-			  		"mem": 1024,
+			  		"mem": 2048,
 			  		"container": {
 			    		"type": "DOCKER",
 			    		"docker": {
@@ -128,7 +128,7 @@
 				{
 					"id": "/hdfsspark/nodemanager/nodemanager",
 			  		"cpus": 1,
-			  		"mem": 1024,
+			  		"mem": 6144,
 			  		"container": {
 			    		"type": "DOCKER",
 			    		"docker": {
@@ -149,7 +149,9 @@
     					"HDFS_CONF_dfs_namenode_datanode_registration_ip___hostname___check" : "false",
     					"HDFS_CONF_dfs_client_use_datanode_hostname" : "false",
     					"HDFS_CONF_dfs_datanode_use_datanode_ip_hostname" : "false",
-    					"YARN_CONF_yarn_resourcemanager_hostname" : "resourcemanager-resourcemanager-hdfsspark.marathon-user.containerip.dcos.thisdcos.directory"
+    					"YARN_CONF_yarn_resourcemanager_hostname" : "resourcemanager-resourcemanager-hdfsspark.marathon-user.containerip.dcos.thisdcos.directory",
+						"YARN_CONF_yarn_nodemanager_resource_memory___mb" : "4096",
+						"YARN_CONF_yarn_nodemanager_resource_cpu___vcores" : "1"
   					}
 				}
 			]

@@ -1,7 +1,9 @@
+from execo import SshProcess
 import anomaly_injector_factory
 import workflow_injector_factory
 from random import shuffle
 import time
+import json
 current_milli_time = lambda: int(round(time.time() * 1000))
 
 """
@@ -43,6 +45,8 @@ class MicroServicesRCA():
                                                                                  connection_params)
         # we are going to write into this log every operation done by the testbed in order to do a post analysis of the experiment
         self.experiment_log = experiment_log
+        # we also keep the connection params on the MicroServicesRCA in case we need it to query API's from the testbed
+        self.connection_params = connection_params
 
     def write_to_experiment_log(self, index, type, event, nodes, start, end, info):
         self.experiment_log.loc[index] = {
@@ -222,9 +226,19 @@ class MicroServicesRCA():
         self.anomaly_injector.clear_up_disk(nodes)
 
     def stress_endpoint(self,endpoint,ninstances,nclients,ntime,time_unit):
+        curl_node = list(self.masters)[0]
+        # we query the marathon-user API for some information about the load balancer
+        p = SshProcess('curl "http://leader.mesos/service/marathon-user/v2/tasks"',
+                       host=curl_node,
+                       connection_params=self.connection_params).run()
+        d = json.loads(p.stdout)
+        marathon_lb_tasks = filter(lambda task: task['appId'] == u'/wordpresslb/loadbalancer/marathonlb',
+                                   d.get('tasks'))
+        # for the moment we are going to keep the host. Note how we don't need it currently but we can use some other
+        # info in the future
+        marathon_lb_host = marathon_lb_tasks[0]['host']
         unit_in_seconds = {"S" : 1 ,"M" : 60 ,"H" : 3600}
         self.write_to_experiment_log(current_milli_time(), "anomaly", "stress_endpoint", "marathon-lb.marathon.mesos",
                                      int(time.time()), int(time.time()) + (int(ntime) * unit_in_seconds[time_unit]),
                                      "EndPoint: {0} Instances: {1} Clients: {2} Time: {3}".format(endpoint,ninstances,nclients,str(ntime) + time_unit))
-        curl_node = list(self.masters)[0]
         self.anomaly_injector.stress_endpoint_siege(curl_node,endpoint,ninstances,nclients,str(ntime) + time_unit)

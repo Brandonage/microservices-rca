@@ -1,16 +1,18 @@
 {
-  "id": "/siegeclients",
+  "id": "/siegestress",
   "groups": [
     {
-      "id": "/siegeclients/siegegroup",
+      "id": "/siegestress/siegesgroup",
       "apps": [
         {
-          "id": "siege",
+          "id": "siegestress",
           "args": [
             "-d@delay@",
             "--time=@time@",
             "-c@nclients@",
-            "http://@endpoint@/"
+            "http://@endpoint@/",
+            "--benchmark",
+            "--rc=/root/siegerc"
           ],
           "cpus": 0.5,
           "mem": 128.0,
@@ -23,7 +25,13 @@
           "instances": @ninstances@,
           "container": {
             "type": "DOCKER",
-            "volumes": [],
+            "volumes": [
+              {
+                "containerPath": "/root/siegerc",
+                "hostPath": "/home/vagrant/siegerc",
+                "mode": "RW"
+              }
+            ],
             "docker": {
               "image": "yokogawa/siege",
               "privileged": false,

@@ -2,7 +2,6 @@ from execo import Remote, Put, SshProcess
 from time import sleep
 from common_functions import replace_infile
 import os
-import json
 
 """
 This class is going to inject anomalies on the different nodes and Docker containers. Is not going to have an internal
@@ -27,6 +26,11 @@ class AnomalyInjectorDCOS():
         # and it will also use the workflows available for dcos, specially the siege workflow to generate a big ammount
         # of calls to an endpoint
         self.resources_path = os.path.join(os.path.dirname(__file__), 'dcos_workflows')
+        # we upload a file that will be used by the siege container to generate requests to an endpoint
+        Put(hosts=nodes,
+            local_files=[self.resources_path + "/siegerc"],
+            remote_location="/home/vagrant/siegerc",
+            connection_params=self.connection_params).run()
 
 
     def send_exec_to_marathon(self,curl_node):
@@ -140,7 +144,7 @@ class AnomalyInjectorDCOS():
                hosts=nodes,
                connection_params=self.connection_params).run()
 
-    def limit_bandwith(self,nodes,delay='100ms',delay_jitter='1ms',bandwidth='100kpbs',loss_percent='1%',timeout=10):
+    def limit_bandwidth(self,nodes,delay='100ms',delay_jitter='1ms',bandwidth='100kpbs',loss_percent='1%',timeout=10):
         self.limit_upload_bandwidth(nodes,delay,delay_jitter,bandwidth,loss_percent)
         sleep(timeout)
         self.restore_upload_bandwidth(nodes)
@@ -172,12 +176,8 @@ class AnomalyInjectorDCOS():
                         "@endpoint@": endpoint,
                         "@ninstances@": str(ninstances)
                         }
-        replace_infile(self.resources_path + "/siege.json",self.resources_path + "/exec.json",replacements)
-        # we add some extra logic to add the benchmark tag to the siege arguments. This eliminates delays between
-        # requests
-        with open(self.resources_path + "/exec.json") as f:
-            siegejson = json.load(f)
-        siegejson['groups'][0]['apps'][0]['args'].append('--benchmark')
-        with open(self.resources_path + "/exec.json","w") as fnew:
-            json.dump(siegejson,fnew)
+        # we have a different json file for the siege stress to avoid having same marathon group names as the normal
+        # siege clients workflow
+        replace_infile(self.resources_path + "/siege_stress.json",self.resources_path + "/exec.json",replacements)
         self.send_exec_to_marathon(curl_node)
+

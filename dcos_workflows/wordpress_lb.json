@@ -2,7 +2,87 @@
   "id" : "/wordpresslb",
   "groups" : [
     {
+      "id" : "/wordpresslb/loadbalancer",
+      "apps": [
+        {
+          "id": "/wordpresslb/loadbalancer/marathonlb",
+          "args": [
+            "sse",
+            "-m",
+            "http://marathon-user.mesos:3842",
+            "--health-check",
+            "--haproxy-map",
+            "--max-reload-retries",
+            "10",
+            "--reload-interval",
+            "10",
+            "--group",
+            "internal"
+          ],
+          "container": {
+            "docker": {
+              "image": "mesosphere/marathon-lb:v1.11.1",
+              "parameters": [
+                {
+                  "key": "label",
+                  "value": "created_by=marathon"
+                },
+                {
+                  "key": "label",
+                  "value": "dcos_pkg_name=marathon-lb"
+                }
+              ],
+              "privileged": true
+            },
+            "portMappings": [
+              { "containerPort":  9090, "hostPort" : 0, "servicePort"  : 10090},
+              { "containerPort":  9091, "hostPort" : 0},
+              { "containerPort": 10000, "hostPort" : 0},
+              { "containerPort": 10001, "hostPort" : 0},
+              { "containerPort": 10002, "hostPort" : 0},
+              { "containerPort": 10003, "hostPort" : 0},
+              { "containerPort": 10004, "hostPort" : 0},
+              { "containerPort": 10005, "hostPort" : 0},
+              { "containerPort": 10006, "hostPort" : 0},
+              { "containerPort": 10007, "hostPort" : 0},
+              { "containerPort": 10008, "hostPort" : 0},
+              { "containerPort": 10009, "hostPort" : 0},
+              { "containerPort": 10010, "hostPort" : 0},
+              { "containerPort": 10011, "hostPort" : 0},
+              { "containerPort": 10012, "hostPort" : 0},
+              { "containerPort": 10013, "hostPort" : 0},
+              { "containerPort": 10014, "hostPort" : 0},
+              { "containerPort": 10015, "hostPort" : 0},
+              { "containerPort": 10016, "hostPort" : 0},
+              { "containerPort": 10017, "hostPort" : 0},
+              { "containerPort": 10018, "hostPort" : 0}
+            ],
+            "type": "DOCKER"
+          },
+          "cpus": 1,
+          "networks": [
+            {
+              "mode": "container",
+              "name": "dcos"
+            }
+          ],
+          "env": {
+            "HAPROXY_GLOBAL_DEFAULT_OPTIONS": "redispatch,http-server-close,dontlognull",
+            "HAPROXY_SSL_CERT": "",
+            "HAPROXY_SYSCTL_PARAMS": "net.core.somaxconn=10000"
+          },
+          "instances": 1,
+          "mem": 1024,
+          "upgradeStrategy": {
+            "maximumOverCapacity": 0.2,
+            "minimumHealthCapacity": 0.5
+          }
+        }
+      ]
+    },
+    {
       "id": "/wordpresslb/mysqlbackend",
+      "dependencies": ["/wordpresslb/loadbalancer"],
       "apps": [
         {
           "id" : "/wordpresslb/mysqlbackend/mysql",
@@ -41,7 +121,7 @@
     },
     {
       "id": "/wordpresslb/wordpressinstances",
-      "dependencies": ["/wordpress_lb/mysqlbackend"],
+      "dependencies": ["/wordpresslb/mysqlbackend"],
       "apps": [
         {
           "id" : "/wordpresslb/wordpressinstances/wordpress",
@@ -72,7 +152,7 @@
             "HAPROXY_GROUP" : "internal"
           },
           "env" : {
-            "WORDPRESS_DB_HOST" : "marathon-lb.marathon.mesos:10002",
+            "WORDPRESS_DB_HOST" : "marathonlb-loadbalancer-wordpresslb.marathon-user.containerip.dcos.thisdcos.directory:10002",
             "WORDPRESS_DB_PASSWORD": "password"
           }
         }
