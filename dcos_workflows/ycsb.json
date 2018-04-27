@@ -1,0 +1,41 @@
+{
+  "id": "/ycsb",
+  "groups": [
+    {
+      "id": "/ycsb/ycsbcassandra",
+      "apps": [
+        {
+          "id": "ycsbclients",
+          "args": [
+            "run",
+            "cassandra-cql",
+            "-P",
+            "ycsb-0.12.0/workloads/@workload@",
+            "-p",
+            "hosts=\"@listofnodes@\"",
+            "-p",
+            "recordcount=100000000",
+            "",
+          ],
+          "cpus": 0.5,
+          "mem": 256.0,
+          "networks": [
+            {
+              "mode": "container",
+              "name": "dcos"
+            }
+          ],
+          "instances": @ninstances@,
+          "container": {
+            "type": "DOCKER",
+            "docker": {
+              "image": "alvarobrandon/ycsb",
+              "privileged": false,
+              "forcePullImage": false
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

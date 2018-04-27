@@ -1,4 +1,4 @@
-from execo import SshProcess
+from execo import SshProcess, Remote
 import anomaly_injector_factory
 import workflow_injector_factory
 from random import shuffle
@@ -55,8 +55,17 @@ class MicroServicesRCA():
             "nodes": nodes,
             "date_start": start,
             "date_end": end,
-            "aditional_info": info
+            "aditional_info": info,
+            "read_date": time.strftime("%c")
         }
+
+    def list_all_running_containers(self):
+        p = Remote('sudo docker ps',
+                   hosts=self.nodes,
+                   connection_params=self.connection_params).run()
+        for process in p.processes:
+            print("In the host {0} the following containers are alive: \n{1}".format(process.host, process.stdout))
+
 
     # From here we are going to include the scenarios that inject both workloads and anomalies. We decided to keep
     # this logic here in the MicroServicesRCA object instead of calling directly the injectors functions.
@@ -78,7 +87,8 @@ class MicroServicesRCA():
                                      "unknown",
                                      "NWordpress: {0}".format(nwordpress))
         curl_node = list(self.masters)[0]
-        self.workflow_injector.lb_wordpress(curl_node, nwordpress)
+        vhost = list(self.private_agents)[0]
+        self.workflow_injector.lb_wordpress(curl_node, nwordpress, vhost)
 
     def siege_http_clients_scenario(self, endpoint, ninstances, nclients, ntime, time_unit, delay):
         unit_in_seconds = {"S": 1, "M": 60, "H": 3600}
@@ -89,6 +99,16 @@ class MicroServicesRCA():
         curl_node = list(self.masters)[0]
         self.workflow_injector.siege_http_clients(curl_node,endpoint,ninstances,nclients,str(ntime) + time_unit,delay)
 
+    def ab_clients_scenario(self,endpoint, ninstances, nclients, nrequests):
+        self.write_to_experiment_log(current_milli_time(), "workflow", "ab_clients", "Scheduled by DCOS",
+                                     int(time.time()), "record_time_manually",
+                                     "EndPoint: {0} Instances: {1} Clients: {2} Requests: {3}".format(endpoint,
+                                                                                                    ninstances,
+                                                                                                    nclients,
+                                                                                                    nrequests))
+        curl_node = list(self.masters)[0]
+        self.workflow_injector.ab_clients(curl_node,endpoint,ninstances,nclients,nrequests)
+
     def hadoop_cluster_scenario(self,ndatanodes,nnodemanagers):
         self.write_to_experiment_log(current_milli_time(), "workflow", "hadoop_cluster", "Scheduled by DCOS",
                                      int(time.time()),
@@ -97,16 +117,48 @@ class MicroServicesRCA():
         curl_node = list(self.masters)[0]
         self.workflow_injector.hadoop_cluster(curl_node,ndatanodes,nnodemanagers)
 
+    def spark_standalone_scenario(self,ndatanodes,nslaves):
+        self.write_to_experiment_log(current_milli_time(), "workflow", "spark_standalone", "Scheduled by DCOS",
+                                     int(time.time()),
+                                     "unknown",
+                                     "NDatanodes: {0} NSlaves: {1}".format(ndatanodes,nslaves))
+        curl_node = list(self.masters)[0]
+        self.workflow_injector.spark_standalone(curl_node,ndatanodes,nslaves)
+
+    def cassandra_cluster_scenario(self,nnodes):
+        self.write_to_experiment_log(current_milli_time(), "workflow", "cassandra_cluster", "Scheduled by DCOS",
+                                     int(time.time()),
+                                     "unknown",
+                                     "NNodes: {0}".format(nnodes))
+        curl_node = list(self.masters)[0]
+        self.workflow_injector.cassandra_cluster(curl_node, nnodes)
+
+    def ycsb_cassandra_client_scenario(self,ninstances,list_of_nodes,workload):
+        self.write_to_experiment_log(current_milli_time(), "workflow", "ycsb_cassandra_client", "Scheduled by DCOS",
+                                     int(time.time()),
+                                     "unknown",
+                                     "NInstances: {0} LNodes: {1} workload: {2}".format(ninstances,list_of_nodes,workload))
+        curl_node = list(self.masters)[0]
+        self.workflow_injector.ycsb_cassandra(curl_node, ninstances,list_of_nodes,workload)
+
     # This are the stress methods. We are going to write in the experiment log the type of anomaly
     # and the time when the mentioned anomaly started.
+
+    def kill_container_id(self,node, containerid):
+        self.write_to_experiment_log(current_milli_time(), "anomaly", "killed container", node, int(time.time()),
+                                     int(time.time()), "container ID: {0}".format(containerid))
+        p = SshProcess('sudo docker kill {0}'.format(containerid),
+                       host=node,
+                       connection_params=self.connection_params).run()
+
 
     def stress_cpu_nodes(self, nodes, nstressors, timeout):
         self.write_to_experiment_log(current_milli_time(), "anomaly", "stress_cpu_nodes", nodes, int(time.time()),
                                      int(time.time()) + timeout, "Stressors: {0}".format(nstressors))
         self.anomaly_injector.stress_cpu(nodes, nstressors, timeout)
 
-    def stress_cpu_nodes_random(self, nnodes, nstressors, timeout):
-        list_nodes = list(self.nodes)
+    def stress_cpu_nodes_random(self, nnodes, nstressors, timeout,leave_out):
+        list_nodes = list(self.private_agents.union(self.masters).difference(leave_out))
         shuffle(list_nodes)
         self.stress_cpu_nodes(set(list_nodes[0:nnodes]), nstressors, timeout)
 
@@ -115,8 +167,8 @@ class MicroServicesRCA():
                                      int(time.time()) + timeout, "Stressors: {0}".format(nstressors))
         self.anomaly_injector.stress_disk(nodes, nstressors, timeout)
 
-    def stress_disk_nodes_random(self, nnodes, nstressors, timeout):
-        list_nodes = list(self.nodes)
+    def stress_disk_nodes_random(self, nnodes, nstressors, timeout,leave_out):
+        list_nodes = list(self.private_agents.union(self.masters).difference(leave_out))
         shuffle(list_nodes)
         self.stress_disk_nodes(set(list_nodes[0:nnodes]), nstressors, timeout)
 
@@ -126,7 +178,7 @@ class MicroServicesRCA():
         self.anomaly_injector.stress_network(nodes, nstressors, timeout)
 
     def stress_network_nodes_random(self, nnodes, nstressors, timeout):
-        list_nodes = list(self.nodes)
+        list_nodes = list(self.private_agents.union(self.masters))
         shuffle(list_nodes)
         self.stress_network_nodes(set(list_nodes[0:nnodes]), nstressors, timeout)
 
@@ -136,7 +188,7 @@ class MicroServicesRCA():
         self.anomaly_injector.stress_lockbus(nodes, nstressors, timeout)
 
     def stress_lockbus_nodes_random(self, nnodes, nstressors, timeout):
-        list_nodes = list(self.nodes)
+        list_nodes = list(self.private_agents.union(self.masters))
         shuffle(list_nodes)
         self.stress_lockbus_nodes(set(list_nodes[0:nnodes]), nstressors, timeout)
 
@@ -146,7 +198,7 @@ class MicroServicesRCA():
         self.anomaly_injector.stress_cache(nodes, nstressors, timeout)
 
     def stress_cache_nodes_random(self, nnodes, nstressors, timeout):
-        list_nodes = list(self.nodes)
+        list_nodes = list(self.private_agents.union(self.masters))
         shuffle(list_nodes)
         self.stress_cache_nodes(set(list_nodes[0:nnodes]), nstressors, timeout)
 
@@ -155,8 +207,8 @@ class MicroServicesRCA():
                                      int(time.time()) + timeout, "Stressors: {0}".format(nstressors))
         self.anomaly_injector.stress_big_heap(nodes, nstressors, timeout)
 
-    def stress_big_heap_nodes_random(self, nnodes, nstressors, timeout):
-        list_nodes = list(self.nodes)
+    def stress_big_heap_nodes_random(self, nnodes, nstressors, timeout,leave_out):
+        list_nodes = list(self.private_agents.union(self.masters).difference(leave_out))
         shuffle(list_nodes)
         self.stress_big_heap_nodes(set(list_nodes[0:nnodes]), nstressors, timeout)
 
@@ -166,7 +218,7 @@ class MicroServicesRCA():
         self.anomaly_injector.stress_matrix(nodes, nstressors, timeout)
 
     def stress_matrix_nodes_random(self, nnodes, nstressors, timeout):
-        list_nodes = list(self.nodes)
+        list_nodes = list(self.private_agents.union(self.masters))
         shuffle(list_nodes)
         self.stress_matrix_nodes(set(list_nodes[0:nnodes]), nstressors, timeout)
 
@@ -176,7 +228,7 @@ class MicroServicesRCA():
         self.anomaly_injector.stress_stream_memory(nodes, nstressors, timeout)
 
     def stress_stream_memory_nodes_random(self, nnodes, nstressors, timeout):
-        list_nodes = list(self.nodes)
+        list_nodes = list(self.private_agents.union(self.masters))
         shuffle(list_nodes)
         self.stress_stream_memory_nodes(set(list_nodes[0:nnodes]), nstressors, timeout)
 
@@ -186,7 +238,7 @@ class MicroServicesRCA():
         self.anomaly_injector.stress_zlib(nodes, nstressors, timeout)
 
     def stress_zlib_nodes_random(self, nnodes, nstressors, timeout):
-        list_nodes = list(self.nodes)
+        list_nodes = list(self.private_agents.union(self.masters))
         shuffle(list_nodes)
         self.stress_zlib_nodes(set(list_nodes[0:nnodes]), nstressors, timeout)
 
@@ -195,8 +247,8 @@ class MicroServicesRCA():
                                      int(time.time()) + timeout, "delay:{0},delay_jitter:{1},bandwidth:{2},loss_percent:{3}".format(delay,delay_jitter,bandwidth,loss_percent))
         self.anomaly_injector.limit_bandwidth(nodes,delay,delay_jitter,bandwidth,loss_percent,timeout)
 
-    def limit_upload_bandwidth_nodes_random(self,nnodes,delay='100ms',delay_jitter='1ms',bandwidth='100kbps',loss_percent='1%',timeout=10):
-        list_nodes = list(self.nodes)
+    def limit_upload_bandwidth_nodes_random(self,nnodes,leave_out,delay='100ms',delay_jitter='1ms',bandwidth='100kbps',loss_percent='1%',timeout=10):
+        list_nodes = list(self.private_agents.union(self.masters).difference(leave_out))
         shuffle(list_nodes)
         self.limit_upload_bandwidth_nodes(set(list_nodes[0:nnodes]),delay,delay_jitter,bandwidth,loss_percent,timeout)
 
@@ -242,3 +294,12 @@ class MicroServicesRCA():
                                      int(time.time()), int(time.time()) + (int(ntime) * unit_in_seconds[time_unit]),
                                      "EndPoint: {0} Instances: {1} Clients: {2} Time: {3}".format(endpoint,ninstances,nclients,str(ntime) + time_unit))
         self.anomaly_injector.stress_endpoint_siege(curl_node,endpoint,ninstances,nclients,str(ntime) + time_unit)
+
+    def stress_endpoint_ab(self, endpoint, ninstances, nclients, nrequests, timein):
+        curl_node = list(self.masters)[0]
+        self.write_to_experiment_log(current_milli_time(), "anomaly", "stress_endpoint_ab", "marathon-lb.marathon.mesos",
+                                     int(time.time()),int(time.time()) + timein,
+                                     "EndPoint: {0} Instances: {1} Clients: {2} Requests: {3}".format(endpoint,ninstances,nclients,nrequests))
+        self.anomaly_injector.ab_clients_stress(curl_node,endpoint,ninstances,nclients,nrequests)
+
+

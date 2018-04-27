@@ -39,12 +39,24 @@ class WorkflowInjectorDCOS():
                         "@endpoint@": endpoint,
                         "@ninstances@": str(ninstances)
                         }
-        replace_infile(self.resources_path + "/siege.json",self.resources_path + "/exec.json",replacements)
+        replace_infile(self.resources_path + "/siege.json", self.resources_path + "/exec.json",replacements)
         self.send_exec_to_marathon(curl_node)
 
-    def lb_wordpress(self,curl_node,nwordpress):
+    def ab_clients(self,curl_node,endpoint, ninstances, nclients, nrequests):
+        replacements = {"@nrequests@" : str(nrequests),
+                        "@nclients@": str(nclients),
+                        "@endpoint@": endpoint,
+                        "@ninstances@": str(ninstances)
+                        }
+        replace_infile(self.resources_path + "/ab.json", self.resources_path + "/exec.json", replacements)
+        self.send_exec_to_marathon(curl_node)
+
+
+
+    def lb_wordpress(self,curl_node,nwordpress, vhost):
         replacements = {
-            "@nwordpress@" : str(nwordpress)
+            "@nwordpress@" : str(nwordpress),
+            "@vhost@" : str(vhost)
         }
         replace_infile(self.resources_path + "/wordpress_lb.json",self.resources_path + "/exec.json",replacements)
         self.send_exec_to_marathon(curl_node)
@@ -56,5 +68,32 @@ class WorkflowInjectorDCOS():
         }
         replace_infile(self.resources_path + "/hdfs_spark.json",self.resources_path + "/exec.json",replacements)
         self.send_exec_to_marathon(curl_node)
+
+    def spark_standalone(self,curl_node,ndatanodes,nslaves):
+        replacements = {
+            "@ndatanodes@": str(ndatanodes),
+            "@nslaves@" : str(nslaves)
+        }
+        replace_infile(self.resources_path + "/hdfs_spark_standalone.json",self.resources_path + "/exec.json",replacements)
+        self.send_exec_to_marathon(curl_node)
+
+    def cassandra_cluster(self,curl_node,nnodes):
+        replacements = {
+            "@nnodes@": str(nnodes)
+        }
+        replace_infile(self.resources_path + "/cassandra.json", self.resources_path + "/exec.json",
+                       replacements)
+        self.send_exec_to_marathon(curl_node)
+
+    def ycsb_cassandra(self, curl_node, ninstances, list_of_nodes, workload):
+        replacements = {
+            "@ninstances@": str(ninstances),
+            "@listofnodes@" : ",".join(list_of_nodes),
+            "@workload@" : workload
+        }
+        replace_infile(self.resources_path + "/ycsb.json", self.resources_path + "/exec.json",
+                       replacements)
+        self.send_exec_to_marathon(curl_node)
+
 
 

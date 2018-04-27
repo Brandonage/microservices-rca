@@ -1,0 +1,3 @@
+FROM bde2020/spark-master:2.1.0-hadoop2.8-hive-java8
+COPY master.sh /
+CMD ["/bin/bash", "/master.sh"]

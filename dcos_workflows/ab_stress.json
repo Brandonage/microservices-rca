@@ -1,0 +1,37 @@
+{
+  "id": "/abstress",
+  "groups": [
+    {
+      "id": "/abstress/abgroup",
+      "apps": [
+        {
+          "id": "abinstances",
+          "args": [
+            "-n @nrequests@",
+            "-c @nclients@",
+            "http://@endpoint@/"
+          ],
+          "cpus": 0.15,
+          "mem": 1024.0,
+          "networks": [
+            {
+              "mode": "container",
+              "name": "dcos"
+            }
+          ],
+          "instances": @ninstances@,
+          "container": {
+            "type": "DOCKER",
+            "volumes": [],
+            "docker": {
+              "image": "jordi/ab",
+              "privileged": false,
+              "parameters": [],
+              "forcePullImage": false
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -9,13 +9,13 @@
           "args": [
             "sse",
             "-m",
-            "http://marathon-user.mesos:3842",
+            "http://marathon-user.mesos:10100",
             "--health-check",
             "--haproxy-map",
             "--max-reload-retries",
             "10",
             "--reload-interval",
-            "10",
+            "10800",
             "--group",
             "internal"
           ],
@@ -69,10 +69,11 @@
           "env": {
             "HAPROXY_GLOBAL_DEFAULT_OPTIONS": "redispatch,http-server-close,dontlognull",
             "HAPROXY_SSL_CERT": "",
-            "HAPROXY_SYSCTL_PARAMS": "net.core.somaxconn=10000"
+            "HAPROXY_SYSCTL_PARAMS": "net.core.somaxconn=10000",
+            "HAPROXY_SYSLOGD" : "true"
           },
           "instances": 1,
-          "mem": 1024,
+          "mem": 2048,
           "upgradeStrategy": {
             "maximumOverCapacity": 0.2,
             "minimumHealthCapacity": 0.5
@@ -86,8 +87,8 @@
       "apps": [
         {
           "id" : "/wordpresslb/mysqlbackend/mysql",
-          "cpus" : 0.4,
-          "mem" : 1024,
+          "cpus" : 1,
+          "mem" : 2048,
           "networks": [
             {
               "mode": "container",
@@ -149,7 +150,11 @@
           },
           "instances": @nwordpress@,
           "labels" : {
-            "HAPROXY_GROUP" : "internal"
+            "HAPROXY_DEPLOYMENT_GROUP":"wordpress",
+            "HAPROXY_GROUP":"internal",
+            "HAPROXY_0_REDIRECT_TO_HTTPS":"true",
+            "HAPROXY_0_VHOST": "@vhost@",
+            "HAPROXY_0_BACKEND_HTTP_OPTIONS":"  option forwardfor\n  no option http-keep-alive\n      http-request set-header X-Forwarded-Port %[dst_port]\n  http-request add-header X-Forwarded-Proto https if { ssl_fc }\n"
           },
           "env" : {
             "WORDPRESS_DB_HOST" : "marathonlb-loadbalancer-wordpresslb.marathon-user.containerip.dcos.thisdcos.directory:10002",

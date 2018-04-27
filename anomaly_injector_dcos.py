@@ -11,8 +11,9 @@ g5k, Amazon). We leave open the possibility of using a Bridge pattern and leave 
 For the moment we only focus on DC/OS
 """
 
+
 class AnomalyInjectorDCOS():
-    def __init__(self,nodes,connection_params):
+    def __init__(self, nodes, connection_params):
         # From now on these are the connection params we will use
         self.connection_params = connection_params
         self.nodes = nodes
@@ -32,8 +33,7 @@ class AnomalyInjectorDCOS():
             remote_location="/home/vagrant/siegerc",
             connection_params=self.connection_params).run()
 
-
-    def send_exec_to_marathon(self,curl_node):
+    def send_exec_to_marathon(self, curl_node):
         Put(hosts=curl_node,
             local_files=[self.resources_path + "/exec.json"],
             remote_location="/home/vagrant/exec.json",
@@ -43,22 +43,23 @@ class AnomalyInjectorDCOS():
             host=curl_node,
             connection_params=self.connection_params).run()
 
-    def stress_ng(self,type,nstressors,timeout,nodes):
-        Remote(cmd="stress-ng --{0} {1} --timeout {2}s".format(type,nstressors,timeout),
+    def stress_ng(self, type, nstressors, timeout, nodes):
+        Remote(cmd="stress-ng --{0} {1} --timeout {2}s".format(type, nstressors, timeout),
                hosts=nodes,
                connection_params=self.connection_params
                ).start()
 
-    def stress_cpu(self,nodes,nstressors,timeout):
-        self.stress_ng(type='cpu',nstressors=nstressors,timeout=timeout,nodes=nodes)
 
-    def stress_disk(self,nodes,nstressors,timeout):
+    def stress_cpu(self, nodes, nstressors, timeout):
+        self.stress_ng(type='cpu', nstressors=nstressors, timeout=timeout, nodes=nodes)
+
+    def stress_disk(self, nodes, nstressors, timeout):
         self.stress_ng(type='hdd', nstressors=nstressors, timeout=timeout, nodes=nodes)
 
-    def stress_network(self,nodes,nstressors,timeout):
+    def stress_network(self, nodes, nstressors, timeout):
         self.stress_ng(type='sock', nstressors=nstressors, timeout=timeout, nodes=nodes)
 
-    def stress_lockbus(self,nodes,nstressors,timeout):
+    def stress_lockbus(self, nodes, nstressors, timeout):
         """
         N stressors that rapidly lock and increment 64 bytes of randomly chosen memory from a 16MB mmap d region
         (Intel x86 CPUs only). This will cause cacheline misses and stalling of CPUs.
@@ -68,7 +69,7 @@ class AnomalyInjectorDCOS():
         """
         self.stress_ng(type='lockbus', nstressors=nstressors, timeout=timeout, nodes=nodes)
 
-    def stress_cache(self,nodes,nstressors,timeout):
+    def stress_cache(self, nodes, nstressors, timeout):
         """
         start N stressors that perform random wide spread memory read and writes to thrash the CPU cache. The code does
         not intelligently determine the CPU cache configuration and so it may be sub-optimal in producing hit-miss
@@ -79,7 +80,7 @@ class AnomalyInjectorDCOS():
         """
         self.stress_ng(type='cache', nstressors=nstressors, timeout=timeout, nodes=nodes)
 
-    def stress_big_heap(self,nodes,nstressors,timeout):
+    def stress_big_heap(self, nodes, nstressors, timeout):
         """
         start N workers that grow their heaps by reallocating memory. If the out of memory killer (OOM) on Linux kills
         the worker or the allocation fails then the allocating process starts all over again. Note that the OOM
@@ -91,7 +92,7 @@ class AnomalyInjectorDCOS():
         """
         self.stress_ng(type='bigheap', nstressors=nstressors, timeout=timeout, nodes=nodes)
 
-    def stress_matrix(self,nodes,nstressors,timeout):
+    def stress_matrix(self, nodes, nstressors, timeout):
         """
         start N workers that perform various matrix operations on floating point values. Testing on 64 bit x86 hardware
         shows that this provides a good mix of memory, cache and floating point operations and is an excellent way to
@@ -102,7 +103,7 @@ class AnomalyInjectorDCOS():
         """
         self.stress_ng(type='matrix', nstressors=nstressors, timeout=timeout, nodes=nodes)
 
-    def stress_stream_memory(self,nodes,nstressors,timeout):
+    def stress_stream_memory(self, nodes, nstressors, timeout):
         """
         start N workers exercising a memory bandwidth stressor loosely based on the STREAM "Sustainable Memory
         Bandwidth in High Performance Computers" benchmarking tool by John D. McCalpin, Ph.D.
@@ -114,7 +115,7 @@ class AnomalyInjectorDCOS():
         """
         self.stress_ng(type='stream', nstressors=nstressors, timeout=timeout, nodes=nodes)
 
-    def stress_zlib(self,nodes,nstressors,timeout):
+    def stress_zlib(self, nodes, nstressors, timeout):
         """
         start N workers compressing and decompressing random data using zlib. Each worker has two processes, one that
         compresses random data and pipes it to another process that decompresses the data.
@@ -125,52 +126,57 @@ class AnomalyInjectorDCOS():
         """
         self.stress_ng(type='zlib', nstressors=nstressors, timeout=timeout, nodes=nodes)
 
-    def limit_upload_bandwidth(self,nodes,delay='100ms',delay_jitter='1ms',bandwidth='100kbps',loss_percent='1%'):
+    def limit_upload_bandwidth(self, nodes, delay='100ms', delay_jitter='1ms', bandwidth='100kbps', loss_percent='1%'):
         Remote(cmd='sudo tc qdisc add dev eth0 root handle 1: htb default 10',
                hosts=nodes,
                connection_params=self.connection_params).run()
         Remote(cmd='sudo tc class add dev eth0 parent 1: classid 1:10 htb rate {0} ceil {0}'.format(bandwidth),
                hosts=nodes,
                connection_params=self.connection_params).run()
-        Remote(cmd='sudo tc qdisc add dev eth0 parent 1:10 handle 10: netem delay {0} {1} 25% loss {2}'.format(delay,delay_jitter,loss_percent),
+        Remote(cmd='sudo tc qdisc add dev eth0 parent 1:10 handle 10: netem delay {0} {1} 25% loss {2}'.format(delay,
+                                                                                                               delay_jitter,
+                                                                                                               loss_percent),
                hosts=nodes,
                connection_params=self.connection_params).run()
         # sudo tc qdisc add dev eth0 root handle 1: htb default 10
         # sudo tc class add dev eth0 parent 1: classid 1:10 htb rate 10kbps ceil 10kbps
         # sudo tc qdisc add dev eth0 parent 1:10 handle 10: netem delay 100ms 0.1ms 25% loss 1%
 
-    def restore_upload_bandwidth(self,nodes):
+    def restore_upload_bandwidth(self, nodes):
         Remote(cmd='sudo tc qdisc del dev eth0 root',
                hosts=nodes,
                connection_params=self.connection_params).run()
 
-    def limit_bandwidth(self,nodes,delay='100ms',delay_jitter='1ms',bandwidth='100kpbs',loss_percent='1%',timeout=10):
-        self.limit_upload_bandwidth(nodes,delay,delay_jitter,bandwidth,loss_percent)
+    def limit_bandwidth(self, nodes, delay='100ms', delay_jitter='1ms', bandwidth='100kpbs', loss_percent='1%',
+                        timeout=10):
+        self.limit_upload_bandwidth(nodes, delay, delay_jitter, bandwidth, loss_percent)
+        print('Sleeping for {0} seconds'.format(timeout))
         sleep(timeout)
+        print('Out of sleep. Restoring bandwidth')
         self.restore_upload_bandwidth(nodes)
 
-    def reboot_machine(self,nodes):
+    def reboot_machine(self, nodes):
         Remote(cmd='sudo reboot',
                hosts=nodes,
                connection_params=self.connection_params).run()
 
-    def shutdown_machine(self,nodes):
+    def shutdown_machine(self, nodes):
         Remote(cmd='sudo shutdown',
                hosts=nodes,
                connection_params=self.connection_params).run()
 
-    def fill_up_disk(self,nodes):
+    def fill_up_disk(self, nodes):
         Remote(cmd="dd if=/dev/zero of=/tmp/tempFiller.deleteMe bs=1M count=1M",
                host=nodes,
                connection_params=self.connection_params).run()
 
-    def clear_up_disk(self,nodes):
+    def clear_up_disk(self, nodes):
         Remote(cmd="rm /tmp/tempFiller.deleteMe",
                host=nodes,
                connection_params=self.connection_params).run()
 
-    def stress_endpoint_siege(self, curl_node, endpoint,ninstances,nclients,time):
-        replacements = {"@delay@" : str(1),
+    def stress_endpoint_siege(self, curl_node, endpoint, ninstances, nclients, time):
+        replacements = {"@delay@": str(1),
                         "@time@": str(time),
                         "@nclients@": str(nclients),
                         "@endpoint@": endpoint,
@@ -178,6 +184,14 @@ class AnomalyInjectorDCOS():
                         }
         # we have a different json file for the siege stress to avoid having same marathon group names as the normal
         # siege clients workflow
-        replace_infile(self.resources_path + "/siege_stress.json",self.resources_path + "/exec.json",replacements)
+        replace_infile(self.resources_path + "/siege_stress.json", self.resources_path + "/exec.json", replacements)
         self.send_exec_to_marathon(curl_node)
 
+    def ab_clients_stress(self, curl_node, endpoint, ninstances, nclients, nrequests):
+        replacements = {"@nrequests@": str(nrequests),
+                        "@nclients@": str(nclients),
+                        "@endpoint@": endpoint,
+                        "@ninstances@": str(ninstances)
+                        }
+        replace_infile(self.resources_path + "/ab_stress.json", self.resources_path + "/exec.json", replacements)
+        self.send_exec_to_marathon(curl_node)

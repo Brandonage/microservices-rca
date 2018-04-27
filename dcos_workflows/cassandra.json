@@ -1,0 +1,64 @@
+{
+	"id": "/cassandracluster",
+	"groups": [
+		{
+			"id": "/cassandracluster/cassandraseeds",
+			"apps":[
+				{
+					"id": "/cassandracluster/cassandraseeds/cassandraseed",
+			  		"cpus": 1,
+			  		"mem": 2048,
+			  		"container": {
+			    		"type": "DOCKER",
+			    		"docker": {
+			      			"image": "cassandra:latest",
+			      			"forcePullImage": true
+			    		},
+                        "portMappings": [
+      						{ "hostPort": 9042, "containerPort": 9042}
+    					]
+			  		},
+                    "networks": [
+                        {
+                            "mode": "container",
+                            "name": "dcos"
+                        }
+                    ],
+			  		"instances": 1
+				}
+			]
+		},
+		{
+			"id": "/cassandracluster/cassandranodes",
+            "dependencies": ["/cassandracluster/cassandraseeds"],
+			"apps":[
+				{
+					"id": "/cassandracluster/cassandranodes/cassandranode",
+			  		"cpus": 1,
+			  		"mem": 2048,
+			  		"container": {
+			    		"type": "DOCKER",
+			    		"docker": {
+			      			"image": "cassandra:latest",
+			      			"forcePullImage": true
+			    		},
+                        "portMappings": [
+      						{ "hostPort": 9042, "containerPort": 9042}
+    					]
+			  		},
+                    "networks": [
+                        {
+                            "mode": "container",
+                            "name": "dcos"
+                        }
+                    ],
+                    "env" : {
+    					"CASSANDRA_SEEDS" : "cassandraseed-cassandraseeds-cassandracluster.marathon-user.containerip.dcos.thisdcos.directory"
+  					},
+			  		"instances": @nnodes@,
+					"constraints": [["hostname", "GROUP_BY"]],
+				}
+			]
+		}
+	]
+}

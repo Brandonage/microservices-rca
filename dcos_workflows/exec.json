@@ -1,17 +1,17 @@
 {
-	"id": "/hdfsspark",
+	"id": "/hdfssparkstandalone",
 	"groups": [
 		{
-			"id": "/hdfsspark/namenode",
+			"id": "/hdfssparkstandalone/namenode",
 			"apps":[
 				{
-					"id": "/hdfsspark/namenode/namenode",
+					"id": "/hdfssparkstandalone/namenode/namenode",
 			  		"cpus": 1,
 			  		"mem": 2048,
 			  		"container": {
 			    		"type": "DOCKER",
 			    		"docker": {
-			      			"image": "uhopper/hadoop-namenode",
+			      			"image": "uhopper/hadoop-namenode:2.8.1",
 			      			"forcePullImage": true
 			    		},
                         "volumes": [
@@ -22,8 +22,8 @@
                             }
                         ],
                         "portMappings": [
-      						{ "hostPort": 0, "containerPort": 8020, "servicePort": 10010 },
-      						{ "hostPort": 0, "containerPort": 50070, "servicePort": 10011 }
+      						{ "hostPort": 0, "containerPort": 8020},
+      						{ "hostPort": 0, "containerPort": 50070 }
     					]
 			  		},
                     "networks": [
@@ -45,24 +45,21 @@
 			]
 		},
 		{
-			"id": "/hdfsspark/datanode",
-            "dependencies": ["/hdfsspark/namenode"],
+			"id": "/hdfssparkstandalone/datanode",
+            "dependencies": ["/hdfssparkstandalone/namenode"],
 			"apps":[
 				{
-					"id": "/hdfsspark/datanode/datanode",
+					"id": "/hdfssparkstandalone/datanode/datanode",
 			  		"cpus": 1,
-			  		"mem": 2024,
+			  		"mem": 2048,
 			  		"container": {
 			    		"type": "DOCKER",
 			    		"docker": {
-			      			"image": "uhopper/hadoop-datanode",
+			      			"image": "uhopper/hadoop-datanode:2.8.1",
 			      			"forcePullImage": true
 			    		},
 						"portMappings": [
-      						{ "hostPort": 0, "containerPort": 50010, "servicePort": 10012 },
-      						{ "hostPort": 0, "containerPort": 50075, "servicePort": 10013 },
-      						{ "hostPort": 0, "containerPort": 50020, "servicePort": 10014 },
-      						{ "hostPort": 0, "containerPort": 50475, "servicePort": 10015 }
+      						{ "hostPort": 0, "containerPort": 50075}
     					],
                         "volumes": [
                             {
@@ -78,11 +75,12 @@
                             "name": "dcos"
                         }
                     ],
-			  		"instances": @ndatanodes@,
+			  		"instances": 4,
 			  		"constraints": [["hostname", "GROUP_BY"]],
 					"env" : {
 						"MULTIHOMED_NETWORK" : "0",
-    					"CORE_CONF_fs_defaultFS" : "hdfs://namenode-namenode-hdfsspark.marathon-user.containerip.dcos.thisdcos.directory:8020",
+                        "CLUSTER_NAME" : "hdfs-cluster",
+    					"CORE_CONF_fs_defaultFS" : "hdfs://namenode-namenode-hdfssparkstandalone.marathon-user.containerip.dcos.thisdcos.directory:8020",
     					"HDFS_CONF_dfs_namenode_datanode_registration_ip___hostname___check" : "false",
     					"HDFS_CONF_dfs_client_use_datanode_hostname" : "false",
     					"HDFS_CONF_dfs_datanode_use_datanode_ip_hostname" : "false",
@@ -92,26 +90,22 @@
 			]
 		},
         {
-			"id": "/hdfsspark/resourcemanager",
-            "dependencies": ["/hdfsspark/namenode"],
+			"id": "/hdfssparkstandalone/sparkmaster",
+            "dependencies": ["/hdfssparkstandalone/namenode"],
 			"apps":[
 				{
-					"id": "/hdfsspark/resourcemanager/resourcemanager",
+					"id": "/hdfssparkstandalone/sparkmaster/sparkmaster",
 			  		"cpus": 1,
-			  		"mem": 2048,
+			  		"mem": 4096,
 			  		"container": {
 			    		"type": "DOCKER",
 			    		"docker": {
-			      			"image": "uhopper/hadoop-resourcemanager",
+			      			"image": "alvarobrandon/spark-master",
 			      			"forcePullImage": true
 			    		},
 			    		"portMappings": [
-      						{ "hostPort": 0, "containerPort": 8032, "servicePort": 10012 },
-      						{ "hostPort": 0, "containerPort": 8030, "servicePort": 10013 },
-      						{ "hostPort": 0, "containerPort": 8088, "servicePort": 10014 },
-      						{ "hostPort": 0, "containerPort": 8090, "servicePort": 10015 },
-      						{ "hostPort": 0, "containerPort": 8031, "servicePort": 10016 },
-      						{ "hostPort": 0, "containerPort": 8033, "servicePort": 10017 }
+      						{ "hostPort": 0, "containerPort": 8080},
+      						{ "hostPort": 0, "containerPort": 7077 }
     					]
 			  		},
 			  		"networks": [
@@ -123,7 +117,8 @@
 			  		"instances": 1,
 					"env" : {
 						"MULTIHOMED_NETWORK" : "0",
-    					"CORE_CONF_fs_defaultFS" : "hdfs://namenode-namenode-hdfsspark.marathon-user.containerip.dcos.thisdcos.directory:8020",
+						"CLUSTER_NAME" : "hdfs-cluster",
+    					"CORE_CONF_fs_defaultFS" : "hdfs://namenode-namenode-hdfssparkstandalone.marathon-user.containerip.dcos.thisdcos.directory:8020",
     					"HDFS_CONF_dfs_namenode_datanode_registration_ip___hostname___check" : "false",
     					"HDFS_CONF_dfs_client_use_datanode_hostname" : "false",
     					"HDFS_CONF_dfs_datanode_use_datanode_ip_hostname" : "false",
@@ -134,23 +129,21 @@
 			]
 		},
 		{
-			"id": "/hdfsspark/nodemanager",
-            "dependencies": ["/hdfsspark/resourcemanager"],
+			"id": "/hdfssparkstandalone/sparkslave",
+            "dependencies": ["/hdfssparkstandalone/sparkmaster"],
 			"apps":[
 				{
-					"id": "/hdfsspark/nodemanager/nodemanager",
+					"id": "/hdfssparkstandalone/sparkslave/sparkslave",
 			  		"cpus": 1,
-			  		"mem": 6144,
+			  		"mem": 4096,
 			  		"container": {
 			    		"type": "DOCKER",
 			    		"docker": {
-			      			"image": "uhopper/hadoop-nodemanager",
+			      			"image": "alvarobrandon/spark-worker",
 			      			"forcePullImage": true
 			    		},
 						"portMappings": [
-      						{ "hostPort": 0, "containerPort": 8040 },
-      						{ "hostPort": 0, "containerPort": 8042 },
-      						{ "hostPort": 0, "containerPort": 45454 }
+      						{ "hostPort": 0, "containerPort": 8081 }
     					]
 			  		},
 			  		"networks": [
@@ -159,16 +152,17 @@
                             "name": "dcos"
                         }
                     ],
-			  		"instances": @nnodemanagers@,
+			  		"instances": 4,
 			  		"constraints": [["hostname", "GROUP_BY"]],
 					"env" : {
 						"MULTIHOMED_NETWORK" : "0",
-    					"CORE_CONF_fs_defaultFS" : "hdfs://namenode-namenode-hdfsspark.marathon-user.containerip.dcos.thisdcos.directory:8020",
+						"CLUSTER_NAME" : "hdfs-cluster",
+    					"CORE_CONF_fs_defaultFS" : "hdfs://namenode-namenode-hdfssparkstandalone.marathon-user.containerip.dcos.thisdcos.directory:8020",
     					"HDFS_CONF_dfs_namenode_datanode_registration_ip___hostname___check" : "false",
     					"HDFS_CONF_dfs_client_use_datanode_hostname" : "false",
     					"HDFS_CONF_dfs_datanode_use_datanode_ip_hostname" : "false",
 						"HDFS_CONF_dfs_datanode_use_datanode_hostname" : "false",
-    					"YARN_CONF_yarn_resourcemanager_hostname" : "resourcemanager-resourcemanager-hdfsspark.marathon-user.containerip.dcos.thisdcos.directory",
+						"SPARK_MASTER" : "spark://sparkmaster-sparkmaster-hdfssparkstandalone.marathon-user.containerip.dcos.thisdcos.directory:7077",
 						"YARN_CONF_yarn_nodemanager_resource_memory___mb" : "4096",
 						"YARN_CONF_yarn_nodemanager_resource_cpu___vcores" : "1"
   					}
