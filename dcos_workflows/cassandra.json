@@ -56,7 +56,7 @@
     					"CASSANDRA_SEEDS" : "cassandraseed-cassandraseeds-cassandracluster.marathon-user.containerip.dcos.thisdcos.directory"
   					},
 			  		"instances": @nnodes@,
-					"constraints": [["hostname", "GROUP_BY"]],
+					"constraints": [["hostname", "GROUP_BY"]]
 				}
 			]
 		}
