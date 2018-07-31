@@ -151,6 +151,19 @@ class MicroServicesRCA():
                        host=node,
                        connection_params=self.connection_params).run()
 
+    def pause_container_id(self,node, containerid,timeout):
+        self.write_to_experiment_log(current_milli_time(), "anomaly", "paused container", node, int(time.time()),
+                                     int(time.time()) + timeout, "container ID: {0}".format(containerid))
+        p = SshProcess('sudo docker pause {0}'.format(containerid),
+                       host=node,
+                       connection_params=self.connection_params).run()
+        time.sleep(timeout)
+        p = SshProcess('sudo docker unpause {0}'.format(containerid),
+                       host=node,
+                       connection_params=self.connection_params).run()
+
+
+
 
     def stress_cpu_nodes(self, nodes, nstressors, timeout):
         self.write_to_experiment_log(current_milli_time(), "anomaly", "stress_cpu_nodes", nodes, int(time.time()),
@@ -177,8 +190,8 @@ class MicroServicesRCA():
                                      int(time.time()) + timeout, "Stressors: {0}".format(nstressors))
         self.anomaly_injector.stress_network(nodes, nstressors, timeout)
 
-    def stress_network_nodes_random(self, nnodes, nstressors, timeout):
-        list_nodes = list(self.private_agents.union(self.masters))
+    def stress_network_nodes_random(self, nnodes, nstressors, timeout,leave_out):
+        list_nodes = list(self.private_agents.union(self.masters).difference(leave_out))
         shuffle(list_nodes)
         self.stress_network_nodes(set(list_nodes[0:nnodes]), nstressors, timeout)
 

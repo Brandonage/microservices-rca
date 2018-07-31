@@ -1,171 +1,123 @@
 {
-	"id": "/hdfssparkstandalone",
+	"id": "/kafkaprodandcons",
 	"groups": [
 		{
-			"id": "/hdfssparkstandalone/namenode",
+			"id": "/kafkaprodandcons/zookeeper",
 			"apps":[
 				{
-					"id": "/hdfssparkstandalone/namenode/namenode",
-			  		"cpus": 1,
-			  		"mem": 2048,
+					"id": "/kafkaprodandcons/zookeeper/zookeeper",
+			  		"cpus": 0.4,
+			  		"mem": 2024,
 			  		"container": {
 			    		"type": "DOCKER",
 			    		"docker": {
-			      			"image": "uhopper/hadoop-namenode:2.8.1",
+			      			"network": "USER",
+			      			"image": "zookeeper",
 			      			"forcePullImage": true
-			    		},
-                        "volumes": [
-                            {
-                              "containerPath": "/hadoop/dfs/name",
-                              "hostPath": "/home/vagrant/name",
-                              "mode": "RW"
-                            }
-                        ],
-                        "portMappings": [
-      						{ "hostPort": 0, "containerPort": 8020},
-      						{ "hostPort": 0, "containerPort": 50070 }
-    					]
+			    		}
 			  		},
-                    "networks": [
-                        {
-                            "mode": "container",
-                            "name": "dcos"
-                        }
-                    ],
-                    "env" : {
-						"MULTIHOMED_NETWORK" : "0",
-    					"CLUSTER_NAME" : "hdfs-cluster",
-    					"HDFS_CONF_dfs_namenode_datanode_registration_ip___hostname___check" : "false",
-    					"HDFS_CONF_dfs_client_use_datanode_hostname" : "false",
-    					"HDFS_CONF_dfs_datanode_use_datanode_ip_hostname" : "false",
-						"HDFS_CONF_dfs_datanode_use_datanode_hostname" : "false"
-  					},
-			  		"instances": 1
-				}
-			]
-		},
-		{
-			"id": "/hdfssparkstandalone/datanode",
-            "dependencies": ["/hdfssparkstandalone/namenode"],
-			"apps":[
-				{
-					"id": "/hdfssparkstandalone/datanode/datanode",
-			  		"cpus": 1,
-			  		"mem": 2048,
-			  		"container": {
-			    		"type": "DOCKER",
-			    		"docker": {
-			      			"image": "uhopper/hadoop-datanode:2.8.1",
-			      			"forcePullImage": true
-			    		},
-						"portMappings": [
-      						{ "hostPort": 0, "containerPort": 50075}
-    					],
-                        "volumes": [
-                            {
-                              "containerPath": "/hadoop/dfs/data",
-                              "hostPath": "/home/vagrant/data",
-                              "mode": "RW"
-                            }
-                        ]
-			  		},
-			  		"networks": [
-                        {
-                            "mode": "container",
-                            "name": "dcos"
-                        }
-                    ],
-			  		"instances": 4,
-			  		"constraints": [["hostname", "GROUP_BY"]],
-					"env" : {
-						"MULTIHOMED_NETWORK" : "0",
-                        "CLUSTER_NAME" : "hdfs-cluster",
-    					"CORE_CONF_fs_defaultFS" : "hdfs://namenode-namenode-hdfssparkstandalone.marathon-user.containerip.dcos.thisdcos.directory:8020",
-    					"HDFS_CONF_dfs_namenode_datanode_registration_ip___hostname___check" : "false",
-    					"HDFS_CONF_dfs_client_use_datanode_hostname" : "false",
-    					"HDFS_CONF_dfs_datanode_use_datanode_ip_hostname" : "false",
-						"HDFS_CONF_dfs_datanode_use_datanode_hostname" : "false"
-  					}
-				}
-			]
-		},
-        {
-			"id": "/hdfssparkstandalone/sparkmaster",
-            "dependencies": ["/hdfssparkstandalone/namenode"],
-			"apps":[
-				{
-					"id": "/hdfssparkstandalone/sparkmaster/sparkmaster",
-			  		"cpus": 1,
-			  		"mem": 4096,
-			  		"container": {
-			    		"type": "DOCKER",
-			    		"docker": {
-			      			"image": "alvarobrandon/spark-master",
-			      			"forcePullImage": true
-			    		},
-			    		"portMappings": [
-      						{ "hostPort": 0, "containerPort": 8080},
-      						{ "hostPort": 0, "containerPort": 7077 }
-    					]
-			  		},
-			  		"networks": [
-                        {
-                            "mode": "container",
-                            "name": "dcos"
-                        }
-                    ],
 			  		"instances": 1,
+                    "ipAddress": {"networkName": "dcos"}
+				}
+			]
+		},
+		{
+			"id": "/kafkaprodandcons/kafkabrokers",
+            "dependencies": ["/kafkaprodandcons/zookeeper"],
+			"apps":[
+				{
+					"id": "/kafkaprodandcons/kafkabrokers/kafka",
+			  		"cpus": 0.4,
+			  		"mem": 1024,
+			  		"container": {
+			    		"type": "DOCKER",
+			    		"docker": {
+			      			"network": "USER",
+			      			"image": "ches/kafka",
+			      			"forcePullImage": true
+			    		}
+			  		},
+			  		"instances": 5,
+                    "ipAddress": {"networkName": "dcos"},
+			  		"constraints": [["hostname", "GROUP_BY"]],
 					"env" : {
-						"MULTIHOMED_NETWORK" : "0",
-						"CLUSTER_NAME" : "hdfs-cluster",
-    					"CORE_CONF_fs_defaultFS" : "hdfs://namenode-namenode-hdfssparkstandalone.marathon-user.containerip.dcos.thisdcos.directory:8020",
-    					"HDFS_CONF_dfs_namenode_datanode_registration_ip___hostname___check" : "false",
-    					"HDFS_CONF_dfs_client_use_datanode_hostname" : "false",
-    					"HDFS_CONF_dfs_datanode_use_datanode_ip_hostname" : "false",
-						"HDFS_CONF_dfs_datanode_use_datanode_hostname" : "false",
-    					"YARN_CONF_yarn_log___aggregation___enable" : "true"
+    					"ZOOKEEPER_IP" : "zookeeper-zookeeper-kafkaprodandcons.marathon-user.containerip.dcos.thisdcos.directory",
+    					"KAFKA_BROKER_ID" : "-1",
+    					"KAFKA_AUTO_CREATE_TOPICS_ENABLE" : "true",
+						"KAFKA_NUM_PARTITIONS" : "10"
   					}
 				}
 			]
 		},
 		{
-			"id": "/hdfssparkstandalone/sparkslave",
-            "dependencies": ["/hdfssparkstandalone/sparkmaster"],
+			"id": "/kafkaprodandcons/producers",
+			"dependencies": ["/kafkaprodandcons/kafkabrokers"],
 			"apps":[
 				{
-					"id": "/hdfssparkstandalone/sparkslave/sparkslave",
-			  		"cpus": 1,
-			  		"mem": 4096,
-			  		"container": {
-			    		"type": "DOCKER",
-			    		"docker": {
-			      			"image": "alvarobrandon/spark-worker",
-			      			"forcePullImage": true
-			    		},
-						"portMappings": [
-      						{ "hostPort": 0, "containerPort": 8081 }
-    					]
-			  		},
-			  		"networks": [
-                        {
-                            "mode": "container",
-                            "name": "dcos"
-                        }
-                    ],
-			  		"instances": 4,
-			  		"constraints": [["hostname", "GROUP_BY"]],
-					"env" : {
-						"MULTIHOMED_NETWORK" : "0",
-						"CLUSTER_NAME" : "hdfs-cluster",
-    					"CORE_CONF_fs_defaultFS" : "hdfs://namenode-namenode-hdfssparkstandalone.marathon-user.containerip.dcos.thisdcos.directory:8020",
-    					"HDFS_CONF_dfs_namenode_datanode_registration_ip___hostname___check" : "false",
-    					"HDFS_CONF_dfs_client_use_datanode_hostname" : "false",
-    					"HDFS_CONF_dfs_datanode_use_datanode_ip_hostname" : "false",
-						"HDFS_CONF_dfs_datanode_use_datanode_hostname" : "false",
-						"SPARK_MASTER" : "spark://sparkmaster-sparkmaster-hdfssparkstandalone.marathon-user.containerip.dcos.thisdcos.directory:7077",
-						"YARN_CONF_yarn_nodemanager_resource_memory___mb" : "4096",
-						"YARN_CONF_yarn_nodemanager_resource_cpu___vcores" : "1"
-  					}
+					"id": "/kafkaprodandcons/producers/fmone-producers",
+			  		"cpus": 0.2,
+					"mem": 200,
+					"container": {
+					  "type": "DOCKER",
+					  "docker": {
+					    "network": "USER",
+					    "image": "alvarobrandon/fmone-agent",
+					    "forcePullImage": true
+					  },
+					"volumes": [
+					    {
+					      "containerPath": "/proc_host",
+					      "hostPath": "/proc",
+					      "mode": "RO"
+					    },
+						{
+						  "containerPath" : "/var/run/docker.sock",
+						  "hostPath": "/var/run/docker.sock",
+						  "mode": "RO"
+						}
+					  ]
+					},
+					"args": ["1","1","docker","inout","kafka","--kafka_bootstrap_out","kafka-kafkabrokers-kafkaprodandcons.marathon-user.containerip.dcos.thisdcos.directory:9092",
+                            "--kafka_topic_out","kafkascenario"],
+					"instances": 10,
+					"ipAddress": {"networkName": "dcos"},
+                    "constraints": [["hostname", "GROUP_BY"]]
+				}
+			]
+		},
+		{
+			"id": "/kafkaprodandcons/consumers",
+			"dependencies": ["/kafkaprodandcons/kafkabrokers"],
+			"apps":[
+				{
+					"id": "/kafkaprodandcons/consumers/fmone-consumers",
+			  		"cpus": 0.2,
+					"mem": 200,
+					"container": {
+					  "type": "DOCKER",
+					  "docker": {
+					    "network": "USER",
+					    "image": "alvarobrandon/fmone-agent",
+					    "forcePullImage": true
+					  },
+					"volumes": [
+					    {
+					      "containerPath": "/proc_host",
+					      "hostPath": "/proc",
+					      "mode": "RO"
+					    },
+						{
+						  "containerPath" : "/var/run/docker.sock",
+						  "hostPath": "/var/run/docker.sock",
+						  "mode": "RO"
+						}
+					  ]
+					},
+					"args": ["1","1","kafka","inout","console","--kafka_bootstrap_in","kafka-kafkabrokers-kafkaprodandcons.marathon-user.containerip.dcos.thisdcos.directory:9092",
+                            "--kafka_topic_in","kafkascenario"],
+					"instances": 10,
+					"ipAddress": {"networkName": "dcos"},
+                    "constraints": [["hostname", "GROUP_BY"]]
 				}
 			]
 		}
